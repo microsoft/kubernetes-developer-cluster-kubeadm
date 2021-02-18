@@ -1,0 +1,9 @@
+{
+  "name": "k8s-dev-cluster",
+  
+  // Install extensions
+  "extensions": [
+    "davidanson.vscode-markdownlint",
+    "ms-azuretools.vscode-docker"
+  ]
+}
