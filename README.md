@@ -58,7 +58,7 @@ az group create -l $AKDC_LOC -n $AKDC_RG
 
 # download setup script
 # replace user name
-curl https://raw.githubusercontent.com/retaildevcrews/akdc/main/scripts/auto.sh | sed s/ME=akdc/ME=$USER/ > akdc.sh
+curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/auto.sh | sed s/ME=akdc/ME=$USER/ > akdc.sh
 
 # create an Ubuntu VM and install k8s
 # save IP address into the AKDC_IP env var
@@ -107,7 +107,7 @@ az group create -l %AKDC_LOC% -n %AKDC_RG%
 
 # download setup script
 # replace user name
-curl https://raw.githubusercontent.com/retaildevcrews/akdc/main/scripts/auto.sh | sed s/ME=akdc/ME=%USERNAME%/ > akdc.sh
+curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/auto.sh | sed s/ME=akdc/ME=%USERNAME%/ > akdc.sh
 
 # create an Ubuntu VM and install k8s
 # save IP address into the AKDC_IP env var
@@ -177,7 +177,7 @@ You can usually reset your k8s cluster to a clean install with `kubeadm reset`  
 
 ```bash
 
-curl https://raw.githubusercontent.com/retaildevcrews/akdc/main/scripts/reset.sh > reset.sh
+curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/reset.sh > reset.sh
 chmod +x reset.sh
 
 # reset your cluster
