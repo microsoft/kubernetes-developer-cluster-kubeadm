@@ -106,8 +106,10 @@ set AKDC_RG=akdc
 az group create -l %AKDC_LOC% -n %AKDC_RG%
 
 # download setup script
+curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/auto.sh > akdc.txt
+
 # replace user name
-curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/auto.sh | sed s/ME=akdc/ME=%USERNAME%/ > akdc.sh
+powershell -Command "(gc akdc.txt) -replace 'ME=akdc', 'ME=%USERNAME%' | Out-File -encoding ASCII akdc.sh"
 
 # create an Ubuntu VM and install k8s
 # save IP address into the AKDC_IP env var
@@ -126,6 +128,7 @@ for /f %f in (' ^
   --custom-data akdc.sh') ^
 do set AKDC_IP=%f
 
+del akdc.txt
 del akdc.sh
 
 echo %AKDC_IP%
