@@ -26,6 +26,7 @@ We have found that the `kubeadm` approach helps engineers learn more about what 
 
 - tested on `Ubuntu 18.04 LTS`
 - minimum 2 cores with 2 GB RAM
+- recommend 2 cores with 4 GB RAM
 
 ## Setup
 
@@ -58,26 +59,39 @@ az group create -l $AKDC_LOC -n $AKDC_RG
 
 # download setup script
 # replace user name
-curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/auto.sh | sed s/ME=akdc/ME=$USER/ > akdc.sh
+curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/akdc.sh > akdc.sh
 
 # create an Ubuntu VM and install k8s
 # save IP address into the AKDC_IP env var
 
 export AKDC_IP=$(az vm create \
   -g $AKDC_RG \
-  --admin-username $USER \
+  --admin-username akdc \
   -n akdc \
   --size standard_d2s_v3 \
-  --nsg-rule SSH \
   --image Canonical:UbuntuServer:18.04-LTS:latest \
   --os-disk-size-gb 128 \
   --generate-ssh-keys \
   --query publicIpAddress -o tsv \
   --custom-data akdc.sh)
 
-rm akdc.sh
-
 echo $AKDC_IP
+
+# delete SSH rule
+az network nsg rule delete -g $AKDC_RG --nsg-name akdcNSG -o table --name default-allow-ssh
+
+# For more security, replace --source-address-prefixes * with your IP or CIDR
+
+# create SSH rule on port 2222
+az network nsg rule create -g $AKDC_RG \
+--nsg-name akdcNSG \
+-n SSH2222 \
+--description "SSH" \
+--destination-port-ranges 2222 \
+--protocol tcp \
+--access allow \
+--priority 1202 \
+--source-address-prefixes *
 
 # (optional) open NodePort range on NSG
 az network nsg rule create -g $AKDC_RG \
@@ -88,7 +102,7 @@ az network nsg rule create -g $AKDC_RG \
 -n AkdcPorts --priority 1200
 
 # SSH into the VM
-ssh ${AKDC_IP}
+ssh akdc@${AKDC_IP} -p 2222
 
 ```
 
@@ -96,7 +110,7 @@ ssh ${AKDC_IP}
 
 > From a Windows cmd prompt
 
-```bash
+```powershell
 
 # change your resource group name and location if desired
 set AKDC_LOC=centralus
@@ -106,10 +120,7 @@ set AKDC_RG=akdc
 az group create -l %AKDC_LOC% -n %AKDC_RG%
 
 # download setup script
-curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/auto.sh > akdc.txt
-
-# replace user name
-powershell -Command "(gc akdc.txt) -replace 'ME=akdc', 'ME=%USERNAME%' | Out-File -encoding ASCII akdc.sh"
+curl https://raw.githubusercontent.com/microsoft/kubernetes-developer-cluster-kubeadm/main/scripts/akdc.sh > akdc.sh
 
 # create an Ubuntu VM and install k8s
 # save IP address into the AKDC_IP env var
@@ -117,10 +128,9 @@ powershell -Command "(gc akdc.txt) -replace 'ME=akdc', 'ME=%USERNAME%' | Out-Fil
 for /f %f in (' ^
   az vm create ^
   -g %AKDC_RG% ^
-  --admin-username %USERNAME% ^
+  --admin-username akdc ^
   -n akdc ^
   --size standard_d2s_v3 ^
-  --nsg-rule SSH ^
   --image Canonical:UbuntuServer:18.04-LTS:latest ^
   --os-disk-size-gb 128 ^
   --generate-ssh-keys ^
@@ -128,10 +138,23 @@ for /f %f in (' ^
   --custom-data akdc.sh') ^
 do set AKDC_IP=%f
 
-del akdc.txt
-del akdc.sh
-
 echo %AKDC_IP%
+
+# delete SSH rule
+az network nsg rule delete -g %AKDC_RG% --nsg-name akdcNSG -o table --name default-allow-ssh
+
+# For more security, replace --source-address-prefixes * with your IP or CIDR
+
+# create SSH rule on port 2222
+az network nsg rule create -g %AKDC_RG% ^
+--nsg-name akdcNSG ^
+-n SSH2222 ^
+--description "SSH" ^
+--destination-port-ranges 2222 ^
+--protocol tcp ^
+--access allow ^
+--priority 1202 ^
+--source-address-prefixes *
 
 # (optional) open NodePort range on NSG
 az network nsg rule create -g %AKDC_RG% ^
@@ -141,34 +164,32 @@ az network nsg rule create -g %AKDC_RG% ^
 --protocol tcp ^
 -n AkdcPorts --priority 1200
 
-ssh %AKDC_IP%
+ssh akdc@%AKDC_IP% -p 2222
 
 ```
 
 ## Validation
 
-> From a bash shell in the VM via SSH
-
-The first time you SSH into the VM, you might get the below error - it is safe to ignore.
-
-- Command 'kubectl' not found, but can be installed with:
-- sudo snap install kubectl
+> SSH into the VM first (instructions above)
 
 ```bash
 
-# this will tell you when the user data script is done
-tail -f status
+# this will tell you when the user data script is complete
+cat status
+
+# your single-node k8s dev cluster is now ready
+kubectl get all --all-namespaces
 
 # (optional) install oh-my-bash kubectl aliases
 sed -i "s/^plugins=($/plugins=(\n  kubectl/g" .bashrc
 source .bashrc
 
-# make sure everything is up to date
+# (optional) make sure everything is up to date
 sudo apt update
-sudo apt dist-upgrade -y
+sudo apt upgrade -y
 
-# your single-node k8s dev cluster is now ready
-kubectl get all --all-namespaces
+# (optional) reboot if required
+sudo shutdown -r now
 
 ```
 
