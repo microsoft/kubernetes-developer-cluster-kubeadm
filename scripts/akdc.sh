@@ -1,11 +1,25 @@
 #!/bin/bash
 
 ##################################
-# automatically replaced with $USER (bash) or %USERNAME% (Windows)
+# change to your time zone
+cp /usr/share/zoneinfo/America/Chicago /etc/localtime
+##################################
+
+##################################
+# If you change this, make sure to change in the AZ CLI command as well
 export ME=akdc
 ##################################
 
-# make some directories we will need
+# upgrade sshd security
+echo "" >> /etc/ssh/sshd_config
+echo "ClientAliveInterval 120" >> /etc/ssh/sshd_config
+echo "Port 2222" >> /etc/ssh/sshd_config
+echo "Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr" >> /etc/ssh/sshd_config
+
+# restart sshd
+systemctl restart sshd
+
+# make some directories
 mkdir -p /home/${ME}/.ssh
 mkdir -p /home/${ME}/.kube
 mkdir -p /home/${ME}/bin
@@ -16,9 +30,7 @@ mkdir -p /etc/systemd/system/docker.service.d
 mkdir -p /etc/docker
 
 cd /home/${ME}
-echo "starting (1/15)" > status
-
-cp /usr/share/zoneinfo/America/Chicago /etc/localtime
+echo "starting" > status
 
 # create / add to groups
 groupadd docker
@@ -49,7 +61,6 @@ echo "alias ipconfig='ip -4 a show eth0 | grep inet | sed \"s/inet//g\" | sed \"
 echo 'export PIP=$(ipconfig | tail -n 1)' >> .bashrc
 echo 'export PATH="$PATH:$HOME/.dotnet/tools:$HOME/go/bin"' >> .bashrc
 echo 'source /usr/share/bash-completion/bash_completion' >> .bashrc
-echo 'source <(kubectl completion bash)' >> .bashrc
 echo 'complete -F __start_kubectl k' >> .bashrc
 
 # change ownership of home directory
@@ -62,13 +73,13 @@ chmod 600 /home/${ME}/.ssh/*
 # set the IP address
 export PIP=$(ip -4 a show eth0 | grep inet | sed "s/inet//g" | sed "s/ //g" | cut -d '/' -f 1 | tail -n 1)
 
-echo "updating (2/15)" >> status
+echo "updating" >> status
 apt-get update
 
-echo "install base (3/15)" >> status
+echo "install base" >> status
 apt-get install -y apt-utils dialog apt-transport-https ca-certificates curl software-properties-common
 
-echo "add repos (4/15)" >> status
+echo "add repos" >> status
 
 # add Docker repo
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key --keyring /etc/apt/trusted.gpg.d/docker.gpg add -
@@ -87,17 +98,17 @@ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.
 
 apt-get update
 
-echo "install utils (5/15)" >> status
+echo "install utils" >> status
 apt-get install -y git wget nano jq zip unzip httpie dnsutils
 
-echo "install libs (6/15)" >> status
+echo "install libs" >> status
 apt-get install -y libssl-dev libffi-dev python-dev build-essential lsb-release gnupg-agent bash-completion
 
-echo "install Azure CLI (7/15)" >> status
+echo "install Azure CLI" >> status
 apt-get install -y azure-cli
 echo "  (optional) you can run az login and az account set -s YourSubscriptionName now" >> status
 
-echo "install k8s (8/15)" >> status
+echo "install k8s" >> status
 apt-get install -y containerd.io kubectl kubelet kubeadm kubernetes-cni
 
 # Set up the Docker daemon to use systemd
@@ -147,13 +158,13 @@ containerd config default > /etc/containerd/config.toml
 # Restart containerd
 systemctl restart containerd
 
-echo "pulling images (9/15)" >> status
+echo "pulling images" >> status
 kubeadm config images pull
 
-echo "kubeadm init (10/15)" >> status
+echo "kubeadm init" >> status
 kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address $PIP --cri-socket /run/containerd/containerd.sock
 
-echo "k8s setup (11/15)" >> status
+echo "k8s setup" >> status
 
 # copy config file
 cp -i /etc/kubernetes/admin.conf /home/${ME}/.kube/config
@@ -174,22 +185,22 @@ kubectl apply -f - -n kube-system
 # change ownership
 chown -R ${ME}:${ME} /home/${ME}
 
-echo "install docker (12/15)" >> status
+echo "install docker" >> status
 apt-get install -y docker-ce docker-ce-cli
 
 # upgrade Ubuntu
-echo "upgrade (13/15)" >> status
+echo "upgrade" >> status
 apt-get dist-upgrade -y
 apt-mark hold kubelet kubeadm kubectl
 
 # CLI for CRI-compatible container runtimes
-echo "install crictl (14/15)" >> status
+echo "install crictl" >> status
 VERSION=$(curl -i https://github.com/kubernetes-sigs/cri-tools/releases/latest | grep "location: https://github.com/" | rev | cut -f 1 -d / | rev | sed 's/\r//')
 wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
 tar -zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
 rm -f crictl-$VERSION-linux-amd64.tar.gz
 
-echo "install tools (15/15)" >> status
+echo "install tools" >> status
 VERSION=$(curl -i https://github.com/derailed/k9s/releases/latest | grep "location: https://github.com/" | rev | cut -f 1 -d / | rev | sed 's/\r//')
 wget https://github.com/derailed/k9s/releases/download/$VERSION/k9s_Linux_x86_64.tar.gz
 tar -zxvf k9s_Linux_x86_64.tar.gz -C /usr/local/bin
@@ -198,7 +209,6 @@ rm -f k9s_Linux_x86_64.tar.gz
 # kubectl auto complete
 kubectl completion bash > /etc/bash_completion.d/kubectl
 source /usr/share/bash-completion/bash_completion
-source <(kubectl completion bash)
 complete -F __start_kubectl k
 
 # install jp (jmespath)
@@ -206,4 +216,4 @@ VERSION=$(curl -i https://github.com/jmespath/jp/releases/latest | grep "locatio
 wget https://github.com/jmespath/jp/releases/download/$VERSION/jp-linux-amd64 -O /usr/local/bin/jp
 chmod +x /usr/local/bin/jp
 
-echo "done" >> status
+echo "complete" >> status
